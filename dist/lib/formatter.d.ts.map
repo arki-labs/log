@@ -1,0 +1,1 @@
+{"version":3,"file":"formatter.d.ts","sourceRoot":"","sources":["../../src/lib/formatter.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,SAAS,EAAgB,MAAM,YAAY,CAAC;AAkC1D,qBAAa,gBAAgB;IAC3B,GAAG,CAAC,MAAM,EAAE,SAAS;IAIrB,MAAM,CAAC,MAAM,CAAC,MAAM,EAAE,SAAS;CAuBhC"}
