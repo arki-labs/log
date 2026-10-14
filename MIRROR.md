@@ -1,6 +1,6 @@
 # @arki/log
 
-Published version: **0.0.3**
+Published version: **0.1.0**
 
 This repository is a **read-only mirror** of the [@arki/log](https://www.npmjs.com/package/@arki/log) npm package.
 

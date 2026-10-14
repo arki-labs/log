@@ -1,1 +1,0 @@
-{"version":3,"file":"rootLogger.js","sourceRoot":"","sources":["../../src/lib/rootLogger.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,MAAM,EAAE,MAAM,aAAa,CAAC;AAErC;;;;;;;;;;;;GAYG;AACH,MAAM,CAAC,MAAM,UAAU,GAAG,IAAI,MAAM,EAAE,CAAC;AAEvC;;;;;;;;;;;;;;;;GAgBG;AACH,MAAM,UAAU,YAAY,CAAC,IAAY,EAAE,UAAuB;IAChE,OAAO,UAAU,CAAC,KAAK,CAAC,IAAI,EAAE,UAAU,CAAC,CAAC;AAC5C,CAAC"}
