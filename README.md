@@ -1,4 +1,4 @@
-Read-only mirror of `@arki/log` v0.3.1. Source and issues: arki-labs/arki. Docs: https://arki.dev/packages/log. Published 2026-10-30 with provenance https://www.npmjs.com/package/@arki/log/v/0.3.1#provenance.
+Read-only mirror of `@arki/log` v0.4.0. Source and issues: arki-labs/arki. Docs: https://arki.dev/packages/log. Published 2026-10-30 with provenance https://www.npmjs.com/package/@arki/log/v/0.4.0#provenance.
 
 # @arki/log
 

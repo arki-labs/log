@@ -4,7 +4,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { closeSync, openSync, writeSync } from 'node:fs';
 import process from 'node:process';
-import { invalidLevelError } from '../core/errors.js';
+import { fileOpenError, invalidLevelError } from '../core/errors.js';
 import { json } from '../core/formatters.js';
 import { Level } from '../core/levels.js';
 import { reportFailure } from '../core/report.js';
@@ -98,7 +98,13 @@ export function stderr(options = {}) {
 }
 /** Appends lines (JSON by default) to a file, opened when this is called. */
 export function file(options) {
-    const fd = openSync(options.path, 'a');
+    let fd;
+    try {
+        fd = openSync(options.path, 'a');
+    }
+    catch (error) {
+        throw fileOpenError(options.path, error);
+    }
     return fdSink(fd, options.format ?? json(), () => closeSync(fd));
 }
 /**

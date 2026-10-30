@@ -38,6 +38,13 @@ export declare const LOG_ERROR_CODES: {
      * @verify bun run test -- src/core/logging.test.ts
      */
     readonly staleHandle: 'ARKI_LOG_E005';
+    /**
+     * `file({ path })` could not open the file for appending (missing folder, no permission, or a directory).
+     *
+     * @fix Create the folder, fix its permissions, or point `path` at a writable file.
+     * @verify bun run test -- src/node/node.test.ts
+     */
+    readonly fileOpenFailed: 'ARKI_LOG_E006';
 };
 export type LogErrorCode = (typeof LOG_ERROR_CODES)[keyof typeof LOG_ERROR_CODES];
 export declare class LogError extends Error {
@@ -47,6 +54,7 @@ export declare class LogError extends Error {
         readonly code: LogErrorCode;
         readonly message: string;
         readonly remediation: string;
+        readonly cause?: unknown;
     });
 }
 /** `configure()` ran a second time on the same `Logging`. */
@@ -59,4 +67,6 @@ export declare function invalidLevelError(level: unknown): LogError;
 export declare function fakeActiveError(): LogError;
 /** `reconfigure()` was called on a handle whose configuration is no longer the active one. */
 export declare function staleHandleError(): LogError;
+/** `file()` could not open its path for appending. */
+export declare function fileOpenError(path: string, cause: unknown): LogError;
 //# sourceMappingURL=errors.d.ts.map

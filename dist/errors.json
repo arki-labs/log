@@ -43,5 +43,14 @@
     "fix": "Use the handle returned by the latest `configure()` call.",
     "verify": "bun run test -- src/core/logging.test.ts",
     "source": "src/core/errors.ts:41"
+  },
+  {
+    "code": "ARKI_LOG_E006",
+    "package": "@arki/log",
+    "kind": "thrown",
+    "what": "`file({ path })` could not open the file for appending (missing folder, no permission, or a directory).",
+    "fix": "Create the folder, fix its permissions, or point `path` at a writable file.",
+    "verify": "bun run test -- src/node/node.test.ts",
+    "source": "src/core/errors.ts:48"
   }
 ]

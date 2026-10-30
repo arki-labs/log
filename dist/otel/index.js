@@ -65,7 +65,10 @@ function attributesOf(record) {
         attributes['log.template'] = record.template;
     return attributes;
 }
-function toAnyValue(value) {
+/** What replaces an object that contains itself. */
+const CIRCULAR = '[Circular]';
+/** `active` holds the objects on the path from the root to `value`, so a cycle ends in a marker, not a stack overflow. */
+function toAnyValue(value, active = new Set()) {
     if (value === null || value === undefined)
         return value;
     switch (typeof value) {
@@ -83,16 +86,24 @@ function toAnyValue(value) {
     }
     if (value instanceof Date)
         return value.toISOString();
-    if (value instanceof Error)
-        return toAnyValue(serializeError(value));
-    if (isFailureLike(value))
-        return toAnyValue(serializeFailure(value));
-    if (isValueArray(value))
-        return value.map(item => toAnyValue(item));
-    const map = {};
-    for (const key in value)
-        map[key] = toAnyValue(value[key]);
-    return map;
+    if (active.has(value))
+        return CIRCULAR;
+    active.add(value);
+    try {
+        if (value instanceof Error)
+            return toAnyValue(serializeError(value), active);
+        if (isFailureLike(value))
+            return toAnyValue(serializeFailure(value), active);
+        if (isValueArray(value))
+            return value.map(item => toAnyValue(item, active));
+        const map = {};
+        for (const key in value)
+            map[key] = toAnyValue(value[key], active);
+        return map;
+    }
+    finally {
+        active.delete(value);
+    }
 }
 function isValueArray(value) {
     return Array.isArray(value);
