@@ -6,6 +6,9 @@ import type { ContextStore, LogRecord, Sink } from './types.js';
  * failing sink loses only its own copy.
  */
 export declare function deliver(sink: Sink, record: LogRecord): void;
+/** Each lifecycle fault loses only this sink's observation; cleanup still proceeds. */
+export declare function flushSink(sink: Sink): Promise<void>;
+export declare function closeSink(sink: Sink): Promise<void>;
 /**
  * The core's context store: correct for synchronous code only. A scope ends
  * when its callback returns, so an `await` inside loses it. Install

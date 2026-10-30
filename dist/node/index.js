@@ -1,3 +1,4 @@
+/** Node, Bun and Deno sinks (`stdout`, `stderr`, `file`), `fromEnv()` and `asyncContext()` for `@arki/log`. */
 // @arki/log/node: sinks, env and async context for Node, Bun and Deno.
 // Importing does nothing: every factory does its work when called.
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -6,6 +7,7 @@ import process from 'node:process';
 import { invalidLevelError } from '../core/errors.js';
 import { json } from '../core/formatters.js';
 import { Level } from '../core/levels.js';
+import { reportFailure } from '../core/report.js';
 /** Lines are written when this many characters are waiting, or on the next `setImmediate`. */
 const FLUSH_AT = 16 * 1024;
 const MAX_EAGAIN_RETRIES = 1000;
@@ -25,7 +27,12 @@ function fdSink(fd, format, onClose) {
             return;
         const data = Buffer.from(pending, 'utf8');
         pending = '';
-        writeAll(fd, data);
+        try {
+            writeAll(fd, data);
+        }
+        catch (error) {
+            reportFailure(flushSync, 'a file descriptor sink', error);
+        }
     };
     const onTick = () => {
         if (scheduled)
@@ -51,7 +58,12 @@ function fdSink(fd, format, onClose) {
             flushSync();
             closed = true;
             process.removeListener('exit', flushSync);
-            onClose?.();
+            try {
+                onClose?.();
+            }
+            catch (error) {
+                reportFailure(flushSync, 'a file descriptor sink close', error);
+            }
         },
     };
 }

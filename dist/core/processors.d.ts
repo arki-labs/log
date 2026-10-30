@@ -9,6 +9,17 @@ export type Censor = string | ((value: Value, path: string) => Value);
 export declare function redact(paths: readonly string[], options?: {
     readonly censor?: Censor;
 }): Processor;
+/** Values shorter than this are never masked: too likely to match ordinary text. */
+export declare const MIN_SECRET_LENGTH = 8;
+/**
+ * Replaces every occurrence of a known secret value, wherever it appears: the template, string
+ * fields at any depth, the serialised error, the body. `redact` hides values at known paths; this
+ * hides known values at any path, for a secret that was revealed and then logged by hand. `values`
+ * is read per record, so secrets loaded after `configure()` are covered too.
+ */
+export declare function maskSecrets(values: () => readonly string[], options?: {
+    readonly censor?: string;
+}): Processor;
 /** Adds fields from `fn`. Never overwrites a key the record already has. */
 export declare function enrich(fn: (record: LogRecord) => Fields): Processor;
 /** Drops records the predicate matches. */

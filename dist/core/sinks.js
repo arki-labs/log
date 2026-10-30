@@ -36,8 +36,7 @@ export function consoleSink(options = {}) {
         write: record => {
             const method = consoleMethod(record.level);
             if (format !== undefined) {
-                console[method](format(record));
-                return;
+                return console[method](format(record));
             }
             const head = `${record.levelName.toUpperCase()}${record.category === '' ? '' : ` [${record.category}]`} ${record.eventName ?? record.message()}`;
             const args = [head];
@@ -47,7 +46,7 @@ export function consoleSink(options = {}) {
                 args.push(record.fields);
             if (record.error !== undefined)
                 args.push(record.error);
-            console[method](...args);
+            return console[method](...args);
         },
     };
 }

@@ -1,7 +1,7 @@
 import type { Fields, LogRecord, Processor, Value } from './types.js';
 import { isFieldMap } from './json.js';
 import { updateRecord } from './record.js';
-import { serializeError } from './serialize.js';
+import { isFailureLike, serializeError, serializeFailure } from './serialize.js';
 
 export type Censor = string | ((value: Value, path: string) => Value);
 
@@ -35,6 +35,12 @@ export function redact(paths: readonly string[], options: { readonly censor?: Ce
       }
       return copy ?? value;
     }
+    if (isFailureLike(value)) {
+      // Like the error below: redact the serialised failure, so paths reach its data and causes.
+      const serialised = serializeFailure(value);
+      const redacted = apply(serialised, segments, index, path);
+      return redacted === serialised ? value : redacted;
+    }
     if (!isFieldMap(value)) return value;
     let copy: Record<string, Value> | undefined;
     const keys = segment === '*' ? Object.keys(value) : Object.hasOwn(value, segment) ? [segment] : [];
@@ -67,6 +73,83 @@ export function redact(paths: readonly string[], options: { readonly censor?: Ce
     }
     if (nextFields === fields && nextError === record.error) return record;
     return updateRecord(record, { fields: nextFields, error: nextError });
+  };
+}
+
+/** Values shorter than this are never masked: too likely to match ordinary text. */
+export const MIN_SECRET_LENGTH = 8;
+
+/**
+ * Replaces every occurrence of a known secret value, wherever it appears: the template, string
+ * fields at any depth, the serialised error, the body. `redact` hides values at known paths; this
+ * hides known values at any path, for a secret that was revealed and then logged by hand. `values`
+ * is read per record, so secrets loaded after `configure()` are covered too.
+ */
+export function maskSecrets(values: () => readonly string[], options: { readonly censor?: string } = {}): Processor {
+  const censor = options.censor ?? '[REDACTED]';
+
+  const mask = (value: Value, secrets: readonly string[]): Value => {
+    if (typeof value === 'string') {
+      let text = value;
+      for (const secret of secrets) text = text.replaceAll(secret, censor);
+      return text;
+    }
+    if (Array.isArray(value)) {
+      const list: readonly Value[] = value;
+      let copy: Value[] | undefined;
+      for (let index = 0; index < list.length; index++) {
+        const next = mask(list[index], secrets);
+        if (next !== list[index]) {
+          copy ??= [...list];
+          copy[index] = next;
+        }
+      }
+      return copy ?? value;
+    }
+    if (isFailureLike(value)) {
+      const serialised = serializeFailure(value);
+      const masked = mask(serialised, secrets);
+      return masked === serialised ? value : masked;
+    }
+    if (value instanceof Error) {
+      // An error inside the fields (`{ err }`): mask its serialised form, like the record's own error.
+      const serialised = serializeError(value);
+      const masked = mask(serialised, secrets);
+      return masked !== serialised && isFieldMap(masked) ? errorFrom(masked) : value;
+    }
+    if (!isFieldMap(value)) return value;
+    let copy: Record<string, Value> | undefined;
+    for (const key of Object.keys(value)) {
+      const next = mask(value[key], secrets);
+      if (next !== value[key]) {
+        copy ??= { ...value };
+        copy[key] = next;
+      }
+    }
+    return copy ?? value;
+  };
+
+  return record => {
+    // Longest first, so a secret that contains another is masked whole.
+    const secrets = [...new Set(values())].filter(secret => secret.length >= MIN_SECRET_LENGTH);
+    if (secrets.length === 0) return record;
+    secrets.sort((a, b) => b.length - a.length);
+    const template = mask(record.template, secrets);
+    const fields = mask(record.fields, secrets);
+    const body = record.body === undefined ? undefined : mask(record.body, secrets);
+    let error = record.error;
+    if (error !== undefined) {
+      const serialised = serializeError(error);
+      const masked = mask(serialised, secrets);
+      if (masked !== serialised && isFieldMap(masked)) error = errorFrom(masked);
+    }
+    if (template === record.template && fields === record.fields && body === record.body && error === record.error) return record;
+    return updateRecord(record, {
+      ...(typeof template === 'string' && template !== record.template ? { template } : {}),
+      ...(isFieldMap(fields) && fields !== record.fields ? { fields } : {}),
+      ...(body === record.body ? {} : { body }),
+      error,
+    });
   };
 }
 

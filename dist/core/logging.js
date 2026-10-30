@@ -1,8 +1,8 @@
 import { alreadyConfiguredError, fakeActiveError, staleHandleError, unknownChannelError } from './errors.js';
 import { Level, toLevel } from './levels.js';
-import { deliver, syncContext } from './pipeline.js';
+import { closeSink, deliver, flushSink, syncContext } from './pipeline.js';
 import { EMPTY_FIELDS, LogEntry } from './record.js';
-import { reportFailure } from './report.js';
+import { observeRejection, reportFailure } from './report.js';
 // ---------------------------------------------------------------------------
 // Internals shared with @arki/log/testing
 // ---------------------------------------------------------------------------
@@ -27,6 +27,8 @@ class LoggingImpl {
     shared;
     context = syncContext();
     state;
+    /** The `owner` the live setup was configured with, if any. */
+    owner;
     fake;
     ring = [];
     ringRoute;
@@ -68,12 +70,15 @@ class LoggingImpl {
         }
         return logger;
     }
-    configure(config) {
+    configure(config, options) {
         if (this.fake !== undefined)
             throw fakeActiveError();
-        if (this.state !== undefined)
+        const owner = options?.owner;
+        if (this.state !== undefined && (owner === undefined || owner !== this.owner))
             throw alreadyConfiguredError();
-        this.install(config);
+        // A re-run by the same owner replaces its live setup; the old sinks drain in the background.
+        void drainAndClose(this.install(config));
+        this.owner = owner;
         // A handle acts only on the configuration it created. In dev, Vite can
         // close an old module's handle after the reloaded module has configured
         // again; that late close must not shut the new setup down.
@@ -91,14 +96,101 @@ class LoggingImpl {
         };
     }
     withContext(fields, fn) {
-        const outer = this.context.get();
-        const scope = {};
-        if (outer !== undefined)
-            for (const key in outer)
-                scope[key] = outer[key];
+        const outer = this.readContext();
+        let scope = {};
+        try {
+            if (outer !== undefined)
+                for (const key in outer)
+                    scope[key] = outer[key];
+        }
+        catch (error) {
+            // Omit the entire failed metadata layer rather than leaking a partial copy.
+            scope = {};
+            reportFailure(this.context, 'a context store', error);
+        }
         for (const key in fields)
             scope[key] = fields[key];
-        return this.context.run(scope, fn);
+        // The application owns the callback outcome. A faulty provider must not
+        // replace it, swallow its error, or cause the callback to run twice.
+        let outcome;
+        let started = false;
+        const invoke = () => {
+            started = true;
+            try {
+                const value = fn();
+                outcome = { value };
+                return value;
+            }
+            catch (error) {
+                outcome = { error };
+                throw error;
+            }
+        };
+        const run = () => {
+            if (!started)
+                return invoke();
+            // A reentrant provider call has no completed application result to return.
+            if (outcome === undefined)
+                return;
+            if ('error' in outcome)
+                throw outcome.error;
+            return outcome.value;
+        };
+        try {
+            const result = this.context.run(scope, run);
+            // An async provider may wrap the application's promise in a second one.
+            // Observe that discarded wrapper, while returning the original promise.
+            if (outcome === undefined || !('value' in outcome) || result !== outcome.value) {
+                observeRejection(result, this.context, 'a context store');
+            }
+        }
+        catch (error) {
+            if (outcome === undefined || !('error' in outcome) || error !== outcome.error) {
+                reportFailure(this.context, 'a context store', error);
+            }
+        }
+        if (outcome === undefined)
+            return invoke();
+        if ('error' in outcome)
+            throw outcome.error;
+        return outcome.value;
+    }
+    readContext() {
+        try {
+            const fields = this.context.get();
+            // Fields may legitimately contain a `then` key. Only a native Promise
+            // is an invalid asynchronous return; metadata is never assimilated.
+            if (fields instanceof Promise) {
+                observeRejection(fields, this.context, 'a context store');
+                return undefined;
+            }
+            return fields;
+        }
+        catch (error) {
+            reportFailure(this.context, 'a context store', error);
+            return undefined;
+        }
+    }
+    readTrace() {
+        const source = this.traceSource;
+        if (source === undefined)
+            return undefined;
+        try {
+            const trace = source();
+            if (trace instanceof Promise) {
+                observeRejection(trace, source, 'a trace source');
+                return undefined;
+            }
+            // Accessors belong to the provider boundary too. The record only sees
+            // a snapshot, so a getter cannot escape later during construction.
+            return trace === undefined
+                ? undefined
+                : { traceId: trace.traceId, spanId: trace.spanId, traceFlags: trace.traceFlags };
+        }
+        catch (error) {
+            reportFailure(source, 'a trace source', error);
+            return undefined;
+        }
     }
     shareContext(fields) {
         const next = {};
@@ -149,7 +241,7 @@ class LoggingImpl {
                 call = without(call, errorKey);
             }
         }
-        const entry = new LogEntry(Date.now(), level, logger.category, template, this.shared, logger.bound, this.context.get(), call, error, logger.traceContext ?? this.traceSource?.(), this.resource, eventName, body, undefined);
+        const entry = new LogEntry(Date.now(), level, logger.category, template, this.shared, logger.bound, this.readContext(), call, error, logger.traceContext ?? this.readTrace(), this.resource, eventName, body, undefined);
         this.dispatch(entry, logger.entries);
     }
     dispatch(record, entries) {
@@ -233,13 +325,14 @@ class LoggingImpl {
         const state = this.state;
         if (state === undefined)
             return;
-        await Promise.all(uniqueSinks(state).map(async (sink) => sink.flush?.()));
+        await Promise.all(uniqueSinks(state).map(sink => flushSink(sink)));
     }
     async close(timeoutMs) {
         const state = this.state;
         if (state === undefined)
             return;
         this.state = undefined;
+        this.owner = undefined;
         this.processors = NO_PROCESSORS;
         this.resource = EMPTY_FIELDS;
         this.traceSource = undefined;
@@ -263,8 +356,7 @@ function uniqueSinks(state) {
     return [...new Set(state.channels.values())];
 }
 async function drainAndClose(sinks) {
-    await Promise.all(sinks.map(async (sink) => sink.flush?.()));
-    await Promise.all(sinks.map(async (sink) => sink.close?.()));
+    await Promise.all(sinks.map(sink => closeSink(sink)));
 }
 function without(fields, omit) {
     const out = {};

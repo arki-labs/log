@@ -7,6 +7,25 @@ export function reportFailure(source, what, error) {
     if (reported.has(source))
         return;
     reported.add(source);
-    console.error(`@arki/log: ${what} threw; later failures from it are not reported.`, error);
+    try {
+        // Diagnostics are observations too: even a broken console cannot escape.
+        void Promise.resolve(console.error(`@arki/log: ${what} threw; later failures from it are not reported.`, error)).catch(() => {
+            // A failed diagnostic has no further safe reporting destination.
+        });
+    }
+    catch {
+        // There is no further safe reporting destination.
+    }
+}
+/** Observes async returns even from callbacks whose TypeScript signature is void. */
+export function observeRejection(result, source, what) {
+    try {
+        if (result === null || (typeof result !== 'object' && typeof result !== 'function') || !('then' in result))
+            return;
+        void Promise.resolve(result).catch(error => reportFailure(source, what, error));
+    }
+    catch (error) {
+        reportFailure(source, what, error);
+    }
 }
 //# sourceMappingURL=report.js.map

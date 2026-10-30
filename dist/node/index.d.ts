@@ -1,3 +1,4 @@
+/** Node, Bun and Deno sinks (`stdout`, `stderr`, `file`), `fromEnv()` and `asyncContext()` for `@arki/log`. */
 import type { ContextStore, EnvSettings, Formatter, Sink } from '../core/types.js';
 type FdSinkOptions = {
     readonly format?: Formatter;

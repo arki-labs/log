@@ -1,5 +1,5 @@
 import { Level } from './levels.js';
-import { deliver } from './pipeline.js';
+import { closeSink, deliver, flushSink } from './pipeline.js';
 import { recordScope, updateRecord } from './record.js';
 /**
  * Monolog's fingers-crossed handler (RFC §7.1). Records from `captureFrom` up
@@ -49,8 +49,8 @@ export function fingersCrossed(sink, options = {}) {
             if (ring.records.length > maxRecords)
                 ring.records.shift();
         },
-        flush: () => sink.flush?.(),
-        close: () => sink.close?.(),
+        flush: () => flushSink(sink),
+        close: () => closeSink(sink),
     };
 }
 /**
@@ -85,12 +85,11 @@ export function buffer(sink, options = {}) {
         },
         flush: () => {
             drain();
-            return sink.flush?.();
+            return flushSink(sink);
         },
         close: async () => {
             drain();
-            await sink.flush?.();
-            await sink.close?.();
+            await closeSink(sink);
         },
     };
 }
@@ -150,19 +149,20 @@ export function deduplicate(sink, options = {}) {
         },
         flush: () => {
             const now = Date.now();
-            for (const [key, window] of windows)
+            const batch = [...windows];
+            for (const [key, window] of batch)
                 close(key, window, now);
-            return sink.flush?.();
+            return flushSink(sink);
         },
         close: async () => {
             if (timer !== undefined)
                 clearTimeout(timer);
             timer = undefined;
             const now = Date.now();
-            for (const [key, window] of windows)
+            const batch = [...windows];
+            for (const [key, window] of batch)
                 close(key, window, now);
-            await sink.flush?.();
-            await sink.close?.();
+            await closeSink(sink);
         },
     };
 }

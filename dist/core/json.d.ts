@@ -7,6 +7,6 @@ export declare function jsonMembers(fields: Fields, depth?: number): string;
 /** A value as it appears inside a rendered message: strings as they are, the rest as JSON. */
 export declare function formatValue(value: Value): string;
 export declare function isValueArray(value: Value): value is readonly Value[];
-/** A plain field map: not an array, Date or Error. */
+/** A plain field map: not an array, Date, Error or failure. */
 export declare function isFieldMap(value: Value): value is Fields;
 //# sourceMappingURL=json.d.ts.map

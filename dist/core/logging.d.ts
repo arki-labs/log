@@ -62,10 +62,20 @@ export type Configured<C extends string> = {
     /** Swaps the configuration atomically; the old sinks that are not reused drain and close. */
     reconfigure<const D extends string>(config: LogConfig<D>): Promise<void>;
 };
+/** Options for `configure()`. */
+export type ConfigureOptions = {
+    /**
+     * Who configures, usually the entry's `import.meta.url`. When the same owner
+     * calls `configure()` again (a dev server re-running the entry), the new setup
+     * replaces the old one and the old handle goes stale. Any other second call
+     * still throws `ARKI_LOG_E001`.
+     */
+    readonly owner?: string;
+};
 /** A logging instance: the default one behind the global functions, or a private one from `createLogging()`. */
 export type Logging = {
     getLogger(category?: string): Logger;
-    configure<const C extends string>(config: LogConfig<C>): Configured<C>;
+    configure<const C extends string>(config: LogConfig<C>, options?: ConfigureOptions): Configured<C>;
     withContext<R>(fields: Fields, fn: () => R): R;
     shareContext(fields: Fields): void;
 };

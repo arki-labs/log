@@ -1,7 +1,22 @@
 import type { LevelName } from './levels.js';
 /** A field value (RFC §5.2). */
-export type Value = string | number | boolean | null | undefined | bigint | Date | Error | readonly Value[] | {
+export type Value = string | number | boolean | null | undefined | bigint | Date | Error | FailureLike | readonly Value[] | {
     readonly [key: string]: Value;
+};
+/**
+ * A failure value from `@arki/failure`, by shape: `@arki/log` keeps zero
+ * dependencies, so it knows a failure by its `'~failure'` brand. Logged as a
+ * field, it prints `code`, `message`, `status`, `data`, `remediation` and
+ * its cause chain as `causes`.
+ */
+export type FailureLike = {
+    readonly code: string;
+    readonly message: string;
+    readonly data: unknown;
+    readonly status: number;
+    readonly remediation: string | undefined;
+    readonly cause?: unknown;
+    readonly '~failure': true;
 };
 /** One field map per record, as in OpenTelemetry. */
 export type Fields = Readonly<Record<string, Value>>;

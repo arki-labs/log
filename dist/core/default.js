@@ -19,9 +19,12 @@ export function defaultLogging() {
 export function getLogger(category) {
     return defaultLogging().getLogger(category);
 }
-/** Configures the default instance, once, at the app entry. A second call throws `ARKI_LOG_E001`. */
-export function configure(config) {
-    return defaultLogging().configure(config);
+/**
+ * Configures the default instance, once, at the app entry. A second call throws `ARKI_LOG_E001`,
+ * unless it comes from the same `owner` (a dev server re-running the entry).
+ */
+export function configure(config, options) {
+    return defaultLogging().configure(config, options);
 }
 /** Runs `fn` with fields every record inside carries. Async code needs `asyncContext()` installed. */
 export function withContext(fields, fn) {

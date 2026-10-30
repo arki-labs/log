@@ -1,3 +1,4 @@
+/** `fakeLog()`, a test double that captures every log record and asserts on it. */
 import type { LevelName } from '../core/levels.js';
 import type { Fields, LogRecord } from '../core/types.js';
 /** What a captured record must match. Every given part must match; `fields` matches a subset. */

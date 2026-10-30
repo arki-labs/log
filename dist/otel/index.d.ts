@@ -1,3 +1,4 @@
+/** An OpenTelemetry trace source and log sink for `@arki/log`. */
 import type { LoggerProvider } from '@opentelemetry/api-logs';
 import type { Sink, TraceSource } from '../core/types.js';
 /**

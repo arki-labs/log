@@ -1,8 +1,9 @@
+/** An OpenTelemetry trace source and log sink for `@arki/log`. */
 // @arki/log/otel: a trace source and a sink for OpenTelemetry (RFC §10).
 // `@opentelemetry/api` and `@opentelemetry/api-logs` are optional peers.
 // Importing does nothing: both functions do their work when called.
 import { isSpanContextValid, ROOT_CONTEXT, trace } from '@opentelemetry/api';
-import { serializeError } from '../core/serialize.js';
+import { isFailureLike, serializeError, serializeFailure } from '../core/serialize.js';
 /** The instrumentation scope name `otelSink` asks the provider for. */
 const SCOPE_NAME = '@arki/log';
 /**
@@ -32,7 +33,7 @@ export function otelSink(loggerProvider) {
     const logger = loggerProvider.getLogger(SCOPE_NAME);
     return {
         write: record => {
-            logger.emit({
+            return logger.emit({
                 timestamp: record.time,
                 severityNumber: record.level,
                 severityText: record.levelName,
@@ -84,6 +85,8 @@ function toAnyValue(value) {
         return value.toISOString();
     if (value instanceof Error)
         return toAnyValue(serializeError(value));
+    if (isFailureLike(value))
+        return toAnyValue(serializeFailure(value));
     if (isValueArray(value))
         return value.map(item => toAnyValue(item));
     const map = {};
