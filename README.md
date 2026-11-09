@@ -1,4 +1,4 @@
-Read-only mirror of `@arki/log` v0.4.0. Source and issues: arki-labs/arki. Docs: https://arki.dev/packages/log. Published 2026-10-30 with provenance https://www.npmjs.com/package/@arki/log/v/0.4.0#provenance.
+Read-only mirror of `@arki/log` v0.4.1. Source and issues: arki-labs/arki. Docs: https://arki.dev/packages/log. Published 2026-11-09 with provenance https://www.npmjs.com/package/@arki/log/v/0.4.1#provenance.
 
 # @arki/log
 
@@ -67,11 +67,11 @@ Runs on Node, Bun, Deno, browsers and React Native (Hermes). The core uses web-s
 <!-- runtimes:start -->
 | Runtime | Result | Version tested | Date (UTC) |
 | --- | --- | --- | --- |
-| node | pass | v26.11.1 | 2026-10-17 |
-| bun | pass | 1.4.2 | 2026-10-17 |
-| deno | pass | 2.9.7 | 2026-10-17 |
-| browser | pass | Chromium 156.0.8078.4 | 2026-10-17 |
-| hermes | not run | - | 2026-10-17 |
+| node | pass | v22.13.1 | 2026-11-05 |
+| bun | pass | 1.4.2 | 2026-11-05 |
+| deno | pass | 2.9.8 | 2026-11-05 |
+| browser | pass | Chromium 156.0.8078.4 | 2026-11-05 |
+| hermes | pass | V1 250829098.0.17 | 2026-11-05 |
 <!-- runtimes:end -->
 
 ## Public imports
@@ -237,6 +237,15 @@ const app = await defineApp('checkout')
   .infra(log(() => ({ ...fromEnv(), context: asyncContext(), channels: { stdout: stdout() }, default: { level: 'info', channels: ['stdout'] } })))
   .boot();
 ```
+
+## Observability
+
+No spans or metrics: `@arki/log` is the log signal, and a span per record would trace the tracer. `@arki/log/otel` joins records to traces instead:
+
+- `otelTrace()` stamps each record built inside an active span with that span's trace id, span id and trace flags. A record built outside a span carries none.
+- `otelSink(provider)` emits each record as an OpenTelemetry LogRecord: severity, the rendered message as the body (or the `emit()` body and event name), the fields plus `log.category`, `log.template` and the resource fields as attributes, the error as the exception, and the trace ids in the record's context, not as attributes.
+
+Proof: `src/otel/span-correlation.test.ts` writes a record inside a real span and checks the emitted LogRecord carries that span's ids.
 
 ## Documentation
 
